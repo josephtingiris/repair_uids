@@ -24,15 +24,24 @@ void usage(int argc, char *argv[])
     //printf("Usage: %s <orig passwd> <orig group> <new passwd> <new group> [OKGO] [path [path [path ...]]]\n", argv[0]);
     fprintf(stderr, "Usage: %s <options> [path [path [path ...]]]\n", argv[0]);
     fprintf(stderr, "\n"
-            "  -p, --passwd               Passwd files (default: passwd.orig:passwd.new)\n"
-            "  -g, --group                Group files (default: group.orig:group.new)\n"
+            "  -p, --passwd <file:file>   Passwd files (default: passwd.orig:passwd.new)\n"
+            "  -g, --group <file:file>    Group files (default: group.orig:group.new)\n"
             "  -l, --log                  Path to write write log files, - to use stdout (default: ${PWD})\n"
             "  --dry-run                  Don't actually modify files (still writes log files)\n"
-            );
+           );
+    exit(1);
 }
 
-void parseFilePair(string const &arg, string &orig_file, string &new_file)
+void parseFilePair(string const &arg, string &orig_file, string &new_file, int arg_index, char *argv[])
 {
+    //fprintf(stdout, "arg %s\n", arg.c_str());
+
+    // prevent core if incorrect arguments are passed
+    if (arg.find(":") == string::npos) {
+        fprintf(stderr, "WARNING: Argument '%s' has invalid value '%s'\n\n", argv[arg_index], arg.c_str());
+        usage(arg_index,argv);
+    }
+
     vector<string> files = split_string(':', arg);
     assert(files.size() == 2);
     orig_file = files[0];
@@ -60,12 +69,19 @@ void parseOpts(int argc, char *argv[])
     paths.clear();
     do {
         c = getopt_long(argc, argv, short_options, long_options, &opt_index);
+
+        //fprintf(stderr,"c =%d\n", c);
+        if (c == 63) {
+            fprintf(stderr,"\n");
+            usage(argc,argv);
+        }
+
         switch (c) {
             case PASSWD:
-                parseFilePair(optarg, orig_passwd, new_passwd);
+                parseFilePair(optarg, orig_passwd, new_passwd, opt_index-1, argv);
                 break;
             case GROUP:
-                parseFilePair(optarg, orig_group, new_group);
+                parseFilePair(optarg, orig_group, new_group, opt_index-1, argv);
                 break;
             case LOG:
                 log_path = optarg;
@@ -87,7 +103,6 @@ int main(int argc, char *argv[])
 {
     if (argc <= 1) {
         usage(argc, argv);
-        exit(0);
     }
 
     parseOpts(argc, argv);
